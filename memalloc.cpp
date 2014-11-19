@@ -23,7 +23,7 @@ struct range {
 
 // freeNode contains a range structure and a pointer to the next freeNode in the list
 struct freeNode{
-	struct range *hole;
+	struct range hole;
 	struct freeNode *next;
 
 };
@@ -31,7 +31,7 @@ struct freeNode{
 
 // allocnode contains range structure, an int for lease time, and a pointer to the next allocNode
 struct allocNode{
-	struct range *allocated;
+	struct range allocated;
 	int leaseExpiry;
 	struct allocNode *next;
 };
@@ -42,7 +42,8 @@ struct allocNode{
 // function prototypes
 void dumpLists(freeNode*,allocNode*);
 freeNode *initLists(freeNode*);
-
+freeNode *addFreeNode(freeNode *);
+allocNode *addAllocNode(allocNode*,int,int,int);
 
 
 // Function bodies
@@ -52,7 +53,7 @@ void dumpLists(freeNode *free, allocNode *alloc){
 	freeNode *tmpf = free;
 	printf("\nFreeNodes:\n");
 	while(tmpf != NULL){
-		printf("node: Start = %d , Size = %d  \n",tmpf->hole->start,tmpf->hole->size);
+		printf("node: Start = %d , Size = %d  \n",tmpf->hole.start,tmpf->hole.size);
 		tmpf = tmpf->next;	
 	}
 
@@ -60,41 +61,43 @@ void dumpLists(freeNode *free, allocNode *alloc){
 	allocNode *tmpa = alloc;
 	printf("\nAllocNodes:\n");
 	while(tmpa != NULL){
-		printf("node: Start = %d , Size = %d  \n",tmpa->allocated->start,tmpa->allocated->size);	
+		printf("node: Start = %d , Size = %d, Expiry = %d  \n",tmpa->allocated.start,tmpa->allocated.size,
+												tmpa->leaseExpiry);	
 		tmpa = tmpa->next;
 	}
 	
 }
 
 freeNode *initLists(){
+
+	// create initial freeNode
 	freeNode *tmp = new freeNode;
-	range *tmpRange = new range;
-	tmpRange->size = MEMORY_SIZE;
-	tmpRange->start = 0;
-	tmp->hole = tmpRange;
+	
+	// assign range and return
+	tmp->hole.size = MEMORY_SIZE;
+	tmp->hole.start = 0;
 	return tmp;
-	
-
-}
-
-freeNode *remRange(freeNode free){
-
 }
 
 
-//returns a pointer to an allocated node
-// simulates a memory request by asking for a randomized size of node
-// takes the allocated and freelist references as a parameter as well as the range and start reference to be modified 
-//allocNode *requestMemory(allocNode &alloc,freeNode &free,int range,int &start);
-//{
+allocNode *addAllocNode(allocNode *f,int start, int size, int lease){
+	//create node
+	allocNode *tmp = new allocNode;
 	
+	//assign range
+	tmp->allocated.start = start;
+	tmp->allocated.size = size;
+	tmp->leaseExpiry = MAX_LEASE;
+	tmp->next = f;
 	
-	// check freelist for available space
-	// remove the range indicated from freelist
-	// add the range to a new node in alloclist
-	 
 
-//}
+	return tmp;
+}
+
+
+
+
+
 
 
 // creating to pointers to alloc and freeNode to start the lists
@@ -108,6 +111,7 @@ long clock = 0;
 	
 	freeList = initLists();
 	printf("Done Initializing..");
+	allocList = addAllocNode(allocList,0,200,55);
 	dumpLists(freeList,allocList);
 	//repeat
 	//requestMemory();
