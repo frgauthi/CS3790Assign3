@@ -41,9 +41,12 @@ struct allocNode{
 
 // function prototypes
 void dumpLists(freeNode*,allocNode*);
-freeNode *initLists(freeNode*);
-freeNode *addFreeNode(freeNode *);
-allocNode *addAllocNode(allocNode*,int,int,int);
+void initLists(freeNode *&);
+void addFreeNode(freeNode *&,int,int);
+void addAllocNode(allocNode *&,int,int,int);
+bool memAlloc(freeNode*&, allocNode*&,int,int);
+bool checkFree(freeNode *&, int,int &);
+void sortLists(freeNode*&, allocNode *&);
 
 
 // Function bodies
@@ -68,7 +71,7 @@ void dumpLists(freeNode *free, allocNode *alloc){
 	
 }
 
-freeNode *initLists(){
+void initLists(freeNode *&f){
 
 	// create initial freeNode
 	freeNode *tmp = new freeNode;
@@ -76,26 +79,158 @@ freeNode *initLists(){
 	// assign range and return
 	tmp->hole.size = MEMORY_SIZE;
 	tmp->hole.start = 0;
-	return tmp;
+	tmp->next = f;
+	f = tmp;
 }
 
 
-allocNode *addAllocNode(allocNode *f,int start, int size, int lease){
+void addAllocNode(allocNode *&f,int start, int size, int lease){
 	//create node
 	allocNode *tmp = new allocNode;
 	
 	//assign range
 	tmp->allocated.start = start;
 	tmp->allocated.size = size;
-	tmp->leaseExpiry = MAX_LEASE;
+	tmp->leaseExpiry = lease;
 	tmp->next = f;
-	
+	f = tmp;
 
-	return tmp;
+	
 }
 
 
+void addFreeNode(freeNode *&f, int start, int size){
+	//create node
+	freeNode *tmp = new freeNode;
+	
+	//assign range to the node
+	tmp->hole.size = size;
+	tmp->hole.start = start;
+	tmp->next = f;
+	f = tmp;
+	
+}
 
+bool memAlloc(freeNode *&free, allocNode *&alloc, int size, int lease){
+	int start;
+	
+	
+	if(checkFree(free,size,start)){ 
+		addAllocNode(alloc,start,size,lease);
+		//add to succeeded allocs
+		sortLists(free,alloc);
+		return true;
+		
+	}else{
+		//merge the freelist
+		//try allocation again
+		if(checkFree(free,size,start)){
+			addAllocNode(alloc,start,size,lease);
+			//add to succeeded allocs
+			sortLists(free,alloc);
+			return true;
+		}
+	}
+// add to failed allocs
+return false;
+}
+
+
+//checks for and removes a chunk of free space
+// returns the start location for the free space;
+bool checkFree(freeNode *&f, int size, int &start){
+ 	freeNode *tmp = f;
+	
+
+	while(tmp != NULL){
+		if(tmp->hole.size >= size ) {
+			start = tmp->hole.start;
+			tmp->hole.start += size;
+			tmp->hole.size -= size;
+			return true;
+		}
+		tmp = tmp->next;
+				
+	}
+return false;
+}
+
+
+void sortLists(freeNode *&f, allocNode*&a){
+	freeNode *tmp = f;
+	freeNode *smallest = tmp;
+	freeNode *anchor = f;
+	int tmpstart;
+	int tmpsize;
+	
+	
+     while(anchor !=NULL){
+	//find smallest
+	tmp = anchor;
+	smallest = anchor;
+	while(tmp != NULL){
+		if(tmp->hole.start < smallest->hole.start) smallest = tmp;
+		tmp = tmp->next;
+	}
+	
+	//swap
+	tmpstart = anchor->hole.start;
+	tmpsize = anchor->hole.size;
+	anchor->hole.start = smallest->hole.start;
+	anchor->hole.size = smallest->hole.size;
+	smallest->hole.start = tmpstart;
+	smallest->hole.size = tmpsize;
+
+	//advance anchor
+	anchor = anchor->next;
+    }
+	///// SORT ALLOCLIST /////
+	allocNode *atmp = a;
+        allocNode *asmallest = atmp;
+        allocNode *aanchor = a; 
+	int tmplease;
+
+     while(aanchor !=NULL){
+        //find smallest
+	atmp = aanchor;
+	asmallest = aanchor;
+        while(atmp != NULL){
+                if(atmp->leaseExpiry > asmallest->leaseExpiry) asmallest = atmp;
+                atmp = atmp->next;
+        }
+
+        //swap
+        tmpstart = aanchor->allocated.start;
+        tmpsize = aanchor->allocated.size;
+	tmplease = aanchor->leaseExpiry;
+        aanchor->allocated.start = asmallest->allocated.start;
+        aanchor->allocated.size = asmallest->allocated.size;
+	aanchor->leaseExpiry =  asmallest->leaseExpiry;
+        asmallest->allocated.start = tmpstart;
+        asmallest->allocated.size = tmpsize;
+	asmallest->leaseExpiry = tmplease;
+
+        //advance anchor
+        aanchor = aanchor->next;
+    }
+
+
+
+}
+
+void deallocate(freeNode *&f, allocNode *&a, long clock){
+	
+	
+	while(a != NULL){
+		if(a->leaseExpiry >= 60){
+			allocNode *tmp = a;
+			a = a->next;
+			delete tmp;
+		}else a = a->next;
+	
+	}
+
+}
 
 
 
@@ -109,9 +244,23 @@ allocNode *allocList;
 int main(){
 long clock = 0;
 	
-	freeList = initLists();
-	printf("Done Initializing..");
-	allocList = addAllocNode(allocList,0,200,55);
+	initLists(freeList);
+	printf("Done Initializing..\n");
+	dumpLists(freeList,allocList);
+	if(memAlloc(freeList,allocList, 200,55) == true) printf("Successful allocation..\n");	
+	dumpLists(freeList,allocList);
+	if(memAlloc(freeList,allocList, 150,60) == true) printf("Successful allocation..\n");	
+	dumpLists(freeList,allocList);
+	if(memAlloc(freeList,allocList, 50,70) == true) printf("Successful allocation..\n");	
+	dumpLists(freeList,allocList);
+	if(memAlloc(freeList,allocList, 600,52) == true) printf("Successful allocation..\n");	
+	dumpLists(freeList,allocList);
+	deallocate(freeList, allocList, 10);
+	dumpLists(freeList,allocList);
+
+	//if(memAlloc(freeList,allocList, 200,55) == true) printf("Successful allocation..\n");
+	//:else printf("ALLOCATION FAILED!");	
+	
 	dumpLists(freeList,allocList);
 	//repeat
 	//requestMemory();
