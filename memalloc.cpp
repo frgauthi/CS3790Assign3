@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 using namespace std;
 
@@ -47,6 +48,7 @@ void addAllocNode(allocNode *&,int,int,int);
 bool memAlloc(freeNode*&, allocNode*&,int,int);
 bool checkFree(freeNode *&, int,int &);
 void sortLists(freeNode*&, allocNode *&);
+void freeMerge(freeNode*&);
 
 
 // Function bodies
@@ -59,6 +61,7 @@ void dumpLists(freeNode *free, allocNode *alloc){
 		printf("node: Start = %d , Size = %d  \n",tmpf->hole.start,tmpf->hole.size);
 		tmpf = tmpf->next;	
 	}
+	
 
 	//dump allocList
 	allocNode *tmpa = alloc;
@@ -122,7 +125,10 @@ bool memAlloc(freeNode *&free, allocNode *&alloc, int size, int lease){
 		return true;
 		
 	}else{
-		//merge the freelist
+		// merge and sort
+		freeMerge(free);
+		sortLists(free,alloc);
+
 		//try allocation again
 		if(checkFree(free,size,start)){
 			addAllocNode(alloc,start,size,lease);
@@ -195,7 +201,7 @@ void sortLists(freeNode *&f, allocNode*&a){
 	atmp = aanchor;
 	asmallest = aanchor;
         while(atmp != NULL){
-                if(atmp->leaseExpiry > asmallest->leaseExpiry) asmallest = atmp;
+		if(atmp->leaseExpiry < asmallest->leaseExpiry) asmallest = atmp;
                 atmp = atmp->next;
         }
 
@@ -220,20 +226,34 @@ void sortLists(freeNode *&f, allocNode*&a){
 
 void deallocate(freeNode *&f, allocNode *&a, long clock){
 	
-	
-	while(a != NULL){
-		if(a->leaseExpiry >= 60){
+	if(a != NULL){
+		while((a->leaseExpiry >= clock) && (a !=NULL)){
 			allocNode *tmp = a;
+			addFreeNode(f,tmp->allocated.start, tmp->allocated.size);
 			a = a->next;
 			delete tmp;
-		}else a = a->next;
-	
+		}
 	}
-
+	sortLists(f,a);
 }
 
-
-
+void freeMerge(freeNode *&f){
+	if(f != NULL){
+		freeNode *Left = f;
+		freeNode *Right;
+		while(Left->next !=NULL){
+			Right = Left->next;
+			if(Left->hole.size + Left->hole.start == Right->hole.start ){
+				Left->hole.size += Right->hole.size;
+				Left->next = Right->next;
+				delete Right;
+				freeNode *Right;
+			}else Left = Left->next;
+			
+		}
+	}
+	
+}
 
 // creating to pointers to alloc and freeNode to start the lists
 freeNode *freeList;
@@ -242,12 +262,15 @@ allocNode *allocList;
 
 
 int main(){
-long clock = 0;
-	
+int clock = 0;
+int size = 0;
+int lease = 0;
+
+/*	
 	initLists(freeList);
 	printf("Done Initializing..\n");
 	dumpLists(freeList,allocList);
-	if(memAlloc(freeList,allocList, 200,55) == true) printf("Successful allocation..\n");	
+	if(memAlloc(freeList,allocList, 1001,55) == true) printf("Successful allocation..\n");	
 	dumpLists(freeList,allocList);
 	if(memAlloc(freeList,allocList, 150,60) == true) printf("Successful allocation..\n");	
 	dumpLists(freeList,allocList);
@@ -255,17 +278,32 @@ long clock = 0;
 	dumpLists(freeList,allocList);
 	if(memAlloc(freeList,allocList, 600,52) == true) printf("Successful allocation..\n");	
 	dumpLists(freeList,allocList);
-	deallocate(freeList, allocList, 10);
+	deallocate(freeList, allocList, clock);
 	dumpLists(freeList,allocList);
+	freeMerge(freeList);
+	sortLists(freeList,allocList);
+	dumpLists(freeList,allocList);
+*/
+	srand(time(NULL));
+	initLists(freeList);
 
-	//if(memAlloc(freeList,allocList, 200,55) == true) printf("Successful allocation..\n");
-	//:else printf("ALLOCATION FAILED!");	
+	do{
 	
+		//attempt allocation
+		if(clock % 100 == 0){
+			lease = clock + (rand() % (MAX_LEASE) + MIN_LEASE);
+			size = rand() % (MAX_SIZE) + MIN_SIZE;
+			printf("Size = %d, Lease = %d, TIME = %d \n",size,lease,clock);
+		
+			if(memAlloc(freeList,allocList, size,lease) == true) printf("Successful allocation..\n");
+			else printf("ALLOCATION FAILED!");	
+		}
+		dumpLists(freeList,allocList);
+		//deallocate expired nodes (if any)
+		deallocate(freeList,allocList, clock);
+	
+	}while( ++clock != TIME_LIMIT);
 	dumpLists(freeList,allocList);
-	//repeat
-	//requestMemory();
-	// check for expired leases
-	//until ( ++clock == TIME_LIMIT);
 return 0;
 }
 
