@@ -227,7 +227,7 @@ void sortLists(freeNode *&f, allocNode*&a){
 void deallocate(freeNode *&f, allocNode *&a, long clock){
 	
 	if(a != NULL){
-		while((a->leaseExpiry >= clock) && (a !=NULL)){
+		while((a != NULL) && (a->leaseExpiry <= clock)){
 			allocNode *tmp = a;
 			addFreeNode(f,tmp->allocated.start, tmp->allocated.size);
 			a = a->next;
@@ -289,18 +289,20 @@ int lease = 0;
 
 	do{
 	
+		deallocate(freeList,allocList, clock);
+		
 		//attempt allocation
-		if(clock % 100 == 0){
+		if(clock % 20 == 0){
 			lease = clock + (rand() % (MAX_LEASE) + MIN_LEASE);
 			size = rand() % (MAX_SIZE) + MIN_SIZE;
 			printf("Size = %d, Lease = %d, TIME = %d \n",size,lease,clock);
 		
 			if(memAlloc(freeList,allocList, size,lease) == true) printf("Successful allocation..\n");
 			else printf("ALLOCATION FAILED!");	
-		}
 		dumpLists(freeList,allocList);
-		//deallocate expired nodes (if any)
-		deallocate(freeList,allocList, clock);
+		}
+			
+		
 	
 	}while( ++clock != TIME_LIMIT);
 	dumpLists(freeList,allocList);
