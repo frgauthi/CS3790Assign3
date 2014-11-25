@@ -13,6 +13,12 @@ using namespace std;
 #define MIN_LEASE 40
 #define MEMORY_SIZE 1000
 
+// statistics variables
+int totalRequests, satisfied, denied;
+int smallestBlock, largestBlock, sumBlock;
+int shortestLease, longestLease, sumLease;
+int mergeCount;
+
 
 
 // range holes two ints, a start location and a size of memory
@@ -127,6 +133,7 @@ bool memAlloc(freeNode *&free, allocNode *&alloc, int size, int lease){
 	}else{
 		// merge and sort
 		freeMerge(free);
+		mergeCount++;
 		sortLists(free,alloc);
 
 		//try allocation again
@@ -249,7 +256,7 @@ void freeMerge(freeNode *&f){
 				delete Right;
 				freeNode *Right;
 			}else Left = Left->next;
-			
+		
 		}
 	}
 	
@@ -266,26 +273,12 @@ int clock = 0;
 int size = 0;
 int lease = 0;
 
-/*	
-	initLists(freeList);
-	printf("Done Initializing..\n");
-	dumpLists(freeList,allocList);
-	if(memAlloc(freeList,allocList, 1001,55) == true) printf("Successful allocation..\n");	
-	dumpLists(freeList,allocList);
-	if(memAlloc(freeList,allocList, 150,60) == true) printf("Successful allocation..\n");	
-	dumpLists(freeList,allocList);
-	if(memAlloc(freeList,allocList, 50,70) == true) printf("Successful allocation..\n");	
-	dumpLists(freeList,allocList);
-	if(memAlloc(freeList,allocList, 600,52) == true) printf("Successful allocation..\n");	
-	dumpLists(freeList,allocList);
-	deallocate(freeList, allocList, clock);
-	dumpLists(freeList,allocList);
-	freeMerge(freeList);
-	sortLists(freeList,allocList);
-	dumpLists(freeList,allocList);
-*/
 	srand(time(NULL));
 	initLists(freeList);
+	smallestBlock = MAX_SIZE;
+	largestBlock = MIN_SIZE;
+	shortestLease = MAX_LEASE;
+	longestLease = MIN_LEASE;	
 
 	do{
 	
@@ -293,19 +286,31 @@ int lease = 0;
 		
 		//attempt allocation
 		if(clock % 20 == 0){
-			lease = clock + (rand() % (MAX_LEASE) + MIN_LEASE);
-			size = rand() % (MAX_SIZE) + MIN_SIZE;
-			printf("Size = %d, Lease = %d, TIME = %d \n",size,lease,clock);
-		
-			if(memAlloc(freeList,allocList, size,lease) == true) printf("Successful allocation..\n");
-			else printf("ALLOCATION FAILED!");	
-		dumpLists(freeList,allocList);
-		}
+			//calculate random lease and size
+			lease = clock + (rand() % (MAX_LEASE - MIN_LEASE) + MIN_LEASE);
+			size = rand() % (MAX_SIZE - MIN_SIZE) + MIN_SIZE;
+			
+			//calculate values for statistics
+			if(lease > longestLease) longestLease = lease;
+			if(lease < shortestLease) shortestLease = lease;
+			if(size < smallestBlock) smallestBlock = size;
+			if(size > largestBlock) largestBlock = size;
 			
 		
+			if(memAlloc(freeList,allocList, size,lease) == true) { 
+						sumLease+=lease; sumBlock+=size; satisfied++; totalRequests++; 
+			}
+			else { denied++; totalRequests++; }	
+		
+		}
 	
 	}while( ++clock != TIME_LIMIT);
+	
+	printf(" Total Requests: %5d\t Satisfied Requests: %5d\t Denied Requests: %5d\n Smallest Block: %5d\t Largest Block: %5d\t\t Avg Block Size: %5d\n Shortest Lease: %5d   Longest Lease: %5d \t\t Avg Lease Size: %5d\n\n",totalRequests, satisfied, denied, smallestBlock, largestBlock, (sumBlock/totalRequests),
+		shortestLease, longestLease, (sumLease/totalRequests));	
+
 	dumpLists(freeList,allocList);
+
 return 0;
 }
 

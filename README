@@ -1,0 +1,22 @@
+This program simulates paging in memory by randomly generating memory requests with varying lease times
+over 1000 cycles, computes the statistics and dumps the nodes at the end of 1000 cycles.
+
+Author: Frankie Gauthier
+Class: CS3790 Assign 3
+
+
+
+Compile
+--------
+
+- To compile the program type "make" while in the CS3790Assign3 directory.
+
+- Then ./memalloc to run and observe the output.
+
+
+
+
+Repository
+-----------
+
+http://github.com/frgauthi/CS3790Assign3.git
